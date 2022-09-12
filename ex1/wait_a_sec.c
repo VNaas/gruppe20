@@ -7,6 +7,8 @@
 #include <sys/times.h>
 #include <string.h>
 #include <inttypes.h>
+#include <sched.h>
+
 struct timespec timespec_normalized(time_t sec, long nsec){
     while(nsec >= 1000000000){
     nsec -= 1000000000;
@@ -52,10 +54,7 @@ void busy_wait_times(clock_t t){
     static clock_t en_time;
     st_time = times(&st_cpu);
     while (((en_time-st_time))<t*100){
-        en_time = times(&en_cpu);
-        // printf("T: %ld",CLOCKS_PER_SEC);
-        printf("Time taken = %ld ticks (%lf milliseconds)\n",(en_time - st_time), 1000.0 * (en_time - st_time)/CLOCKS_PER_SEC);   
-
+        en_time = times(&en_cpu);           // times is in hundredths of seconds
     }
 
 }
@@ -94,35 +93,56 @@ int main(int argc, char* argv[]){
     // printf("Estimated latency: ");
 
     // printf("Total time: %" PRIu64,total);
-    int ns_max = 50;
+
+    //TASK B:
+    // int ns_max = 50;
+    // int histogram[ns_max];
+    // memset(histogram, 0, sizeof(int)*ns_max);
+    // for(int i = 0; i < 10*1000*1000; i++){
+    //     //RDSC
+    //     //uint64_t t1 = rdtsc();
+    //     //uint64_t t2 = rdtsc();
+    //     //int ns = (t2 - t1) *18.51 ;
+    //     //GET-time
+    //     //struct timespec t1, t2;
+    //     // clock_gettime(CLOCK_MONOTONIC,&t1);
+    //     // clock_gettime(CLOCK_MONOTONIC,&t2);
+    //     // int ns = (t2.tv_nsec-t1.tv_nsec);
+    //     //TIMES
+    //     /* clock_t t1;
+    //     clock_t t2;
+    //      static struct tms st_cpu;
+    //     t1 = times(&st_cpu);
+    //     t2 = times(&st_cpu);
+    //     int ns = (t2-t1)*10000000;
+    //     */
+
+    //     // RDTS       
+    //     if(ns >= 0 && ns < ns_max){
+    //         histogram[ns]++;
+    //     }
+    // }
+    // for(int i = 0; i < ns_max; i++){
+    //     printf("%d\n", histogram[i]);
+    // }
+    
+    //TASK C:
+    int ns_max = 5000;
     int histogram[ns_max];
     memset(histogram, 0, sizeof(int)*ns_max);
     for(int i = 0; i < 10*1000*1000; i++){
-        //RDSC
-        //uint64_t t1 = rdtsc();
-        //uint64_t t2 = rdtsc();
-        //int ns = (t2 - t1) *18.51 ;
-        //GET-time
-        //struct timespec t1, t2;
-        // clock_gettime(CLOCK_MONOTONIC,&t1);
-        // clock_gettime(CLOCK_MONOTONIC,&t2);
-        // int ns = (t2.tv_nsec-t1.tv_nsec);
-        //TIMES
-        clock_t t1;
-        clock_t t2;
-         static struct tms st_cpu;
-        t1 = times(&st_cpu);
-        t2 = times(&st_cpu);
-        int ns = (s)
-
+        struct timespec t1, t2;
+        clock_gettime(CLOCK_MONOTONIC,&t1);
+        sched_yield();
+        clock_gettime(CLOCK_MONOTONIC,&t2);
+        int ns = (t2.tv_nsec-t1.tv_nsec);
         if(ns >= 0 && ns < ns_max){
-            histogram[ns]++;
-        }
+                histogram[ns]++;
+            }
     }
     for(int i = 0; i < ns_max; i++){
-        printf("%d\n", histogram[i]);
-    }
-
+            printf("%d\n", histogram[i]);
+        }
 
     return 0;
 }
