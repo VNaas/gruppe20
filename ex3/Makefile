@@ -1,9 +1,9 @@
 # program executable name
 TARGET = Scheduling
 # compiler flags
-CFLAGS = -g -Wall -pthread -std=gnu11 
+CFLAGS = -g -Wall -lpthread -std=gnu11 
 # linker flags
-LDFLAGS = -g -pthread
+LDFLAGS = -g -lpthread
 # list of sources
 SOURCES = $(shell find -name "*.c")
 # default rule, to compile everything
@@ -12,10 +12,10 @@ all: $(TARGET)
 OBJECTS = $(SOURCES:.c=.o)
 # link programs
 $(TARGET): $(OBJECTS)
-	gcc $(LDFLAGS) -o $@ $^
+	clang $(LDFLAGS) -o $@ $^
 # compile
 %.o : %.c
-	gcc $(CFLAGS) -c -o $@ $<
+	clang $(CFLAGS) -c -o $@ $<
 # cleaning
 clean:
 	rm -f $(TARGET) $(OBJECTS)
