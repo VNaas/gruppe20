@@ -245,11 +245,20 @@ void highest_RR_next(struct Task ** tasks, int taskCount, int timeout){
 
 int next_start_time(struct Task** tasks, int taskCount){
 	int nextStartTime = -1;
-	for(int i = 0; i < taskCount; i++){
-		if(nextStartTime == -1 || tasks[i]->startTime < nextStartTime){
+	for(int i = 0; i < (taskCount-1); i++){
+		// if((nextStartTime == -1 && tasks[i] == idle)|| (tasks[i]->startTime < nextStartTime && tasks[i]-> state == idle)){
+		// 	nextStartTime = tasks[i] -> startTime;
+		// }
+		if((nextStartTime == -1) && (tasks[i]->state == idle)){
 			nextStartTime = tasks[i] -> startTime;
 		}
+		else if (tasks[i]->startTime < nextStartTime && tasks[i]->state == idle ){
+			nextStartTime = tasks[i] -> startTime;
+		}		
 	}
+	printf("Next starttime: %i \n",nextStartTime);
+
+	return nextStartTime;
 }
 
 void shortest_remaining_time(struct Task ** tasks, int taskCount, int timeout){
@@ -259,15 +268,21 @@ void shortest_remaining_time(struct Task ** tasks, int taskCount, int timeout){
 	int tasksCompleted = 0;
 	int currentTaskRemainingTime = -1;
 	int currentTaskIndex = 0;
+	int prevTaskIndex = -1;
+	double rt = 5;
+	int interval = rt;
 	while(1){
 		printf("Scheduler running at time %d \n", totalTimePassed);
 		fflush(stdout);
 		for(int i = 0; i < taskCount; i++){
 			if (tasks[i]-> state != finished){
-				if(tasks[i] ->startTime >= totalTimePassed){
-					double rt = tasks[i]-> totalRuntime - tasks[i]-> currentRuntime;
-					if (rt < currentTaskRemainingTime){
+				if(tasks[i] ->startTime <= totalTimePassed){
+					rt = tasks[i]-> totalRuntime - tasks[i]-> currentRuntime;
+					if (rt < currentTaskRemainingTime || currentTaskRemainingTime == -1){
 						currentTaskIndex = i;
+						currentTaskRemainingTime = rt;
+						printf("Current task: %i  with rt: %f\n",currentTaskIndex, rt);
+
 					}
 
 				}
@@ -284,12 +299,34 @@ void shortest_remaining_time(struct Task ** tasks, int taskCount, int timeout){
 		// ADD INTERVAL TO TASK -> CURRENTRUNTIME
 		
 		// printf("TASK INDEX: %i \n", currentTaskIndex);
+		if(prevTaskIndex != currentTaskIndex && prevTaskIndex != -1 && tasks[prevTaskIndex]->state != finished){ 
+			// prevTaskIndex == -1 means that this is the first task to be selected
+			set_task_state(tasks[prevTaskIndex], preempted);
+		}
 		if(tasksCompleted < taskCount){
+			interval = rt;
+			if (tasks[currentTaskIndex]->state != preempted){
+				interval = next_start_time(tasks,taskCount)-totalTimePassed;
+			}
+			else{
+				interval = totalTimePassed +rt - next_start_time(tasks,taskCount);
+			}
+			printf("TASK %i will run for interval: %i \n",currentTaskIndex, interval);
+
 			set_task_state(tasks[currentTaskIndex], running);
-			wait_for_rescheduling(tasks[currentTaskIndex] -> totalRuntime+10, tasks[currentTaskIndex]);
-			set_task_state(tasks[currentTaskIndex], finished);
-			currentTaskRemainingTime = -1;
-			tasksCompleted++;
+			wait_for_rescheduling(interval, tasks[currentTaskIndex]);
+			rt = tasks[currentTaskIndex]-> totalRuntime - tasks[currentTaskIndex]-> currentRuntime;
+			if (rt == 0){
+				set_task_state(tasks[currentTaskIndex], finished);
+				currentTaskRemainingTime = -1;
+				tasksCompleted++;
+				printf("TASK DONE: %i \n",currentTaskIndex);
+			}
+			else{
+				set_task_state(tasks[currentTaskIndex], preempted);
+				printf("TASK: %i \n",currentTaskIndex);
+
+			}
 			totalTimePassed += (tasks[currentTaskIndex]->currentRuntime);
 		}
 		if(tasksCompleted >= taskCount){
@@ -331,6 +368,7 @@ void feedback(struct Task ** tasks, int taskCount, int timeout){
 					}
 				}
 			}
+			
 			set_task_state(tasks[currentTaskIndex], running);
 			wait_for_rescheduling(tasks[currentTaskIndex] -> totalRuntime+10, tasks[currentTaskIndex]);
 			set_task_state(tasks[currentTaskIndex], finished);
