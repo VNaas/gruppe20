@@ -163,7 +163,7 @@ void shortest_process_next(struct Task ** tasks, int taskCount, int timeout){
 		
 		for(int i = 0; i < taskCount; i++){
 			if(tasks[i] ->totalRuntime < currentTaskRunTime || currentTaskRunTime == -1){
-				if (tasks[i] -> state != finished){
+				if (tasks[i] -> state != finished && tasks[i] -> startTime <= totalTimePassed){
 				currentTaskIndex = i;
 				currentTaskRunTime = tasks[i] -> totalRuntime;
 				}
@@ -335,30 +335,54 @@ void shortest_remaining_time(struct Task ** tasks, int taskCount, int timeout){
 }
 
 void feedback(struct Task ** tasks, int taskCount, int timeout){
-	while(1){
-	printf("Started RR scheduler with %d tasks \n", taskCount);
+	printf("Started feedback scheduler with %d tasks \n", taskCount);
 	fflush(stdout);
 	int totalTimePassed = 0;
 	int currentTaskIndex = 0;
 	int prevTaskIndex = -1;
 	int counter = 0;
-	int interval = 5;
+	int interval = 10;
 	int currentPriority = 0;	//Do something with current priority?
+	int maxPriority = 7;
+	struct Task* twoDQueue[maxPriority][taskCount];
+	for(int i = 0; i < maxPriority; i++){
+		for(int j = 0; j < taskCount; j++){
+			if(i == 0){
+				twoDQueue[0][j] = tasks[j];
+			}
+			else{
+				twoDQueue[i][j] = NULL;
+			}
+		}
+	}
 	while(1){
 		printf("Scheduler running at time %d \n", totalTimePassed);
 		fflush(stdout);
-		
 		if(totalTimePassed >= timeout){
 			printf("Scheduler done \n");
 			fflush(stdout);
 			return;
 		}
-		
 		counter = 0;
+		for(int i = 0; i < maxPriority; i++){
+			for(int j = 0; j < taskCount; j++){
+				// printf("i:%d\tj%d\n",i,j);
+				fflush(stdout);
+				if(twoDQueue[i][j] != NULL){
+					if(twoDQueue[i][j]->state != finished && twoDQueue[i][j]->startTime <= totalTimePassed){
+						currentPriority = i;
+						break;
+
+					}
+				}
+			}
+		}
 		while(counter < taskCount){
 			currentTaskIndex = (currentTaskIndex + 1) % taskCount;
-			if(tasks[currentTaskIndex]->state != finished && tasks[currentTaskIndex]->startTime <= totalTimePassed){
-				break;
+			if(twoDQueue[currentPriority][currentTaskIndex] != NULL){
+				if(twoDQueue[currentPriority][currentTaskIndex]->state != finished && twoDQueue[currentPriority][currentTaskIndex]->startTime <= totalTimePassed){
+					break;
+				}
 			}
 			counter ++;
 		}
@@ -368,6 +392,8 @@ void feedback(struct Task ** tasks, int taskCount, int timeout){
 		} else {
 			if(prevTaskIndex != currentTaskIndex && prevTaskIndex != -1 && tasks[prevTaskIndex]->state != finished){ // prevTaskIndex == -1 means that this is the first task to be selected
 				set_task_state(tasks[prevTaskIndex], preempted);
+				twoDQueue[currentPriority+1][currentTaskIndex] = twoDQueue[currentPriority][currentTaskIndex]; 
+				twoDQueue[currentPriority][currentTaskIndex] = NULL;
 			}
 			set_task_state(tasks[currentTaskIndex], running);
 			int previousTaskRuntime = tasks[currentTaskIndex]->currentRuntime;
@@ -385,7 +411,7 @@ int main(){
 	int taskCount = 5;
 	pthread_t threads[taskCount];
 	
-	// {state, ID, start-time, total runtime, current runtime}
+	// {state, ID, start-time, total runtime, current runtime, priority}
 	struct Task task0 = {idle, 0, 00, 30, 0, 0};
 	struct Task task1 = {idle, 1, 15, 60, 0, 0};
 	struct Task task2 = {idle, 2, 35, 40, 0, 0};
@@ -404,12 +430,12 @@ int main(){
     // round_robin(tasks, taskCount, schedulerTimeout, 10);
     //TASK B:
 	//first_come_first(tasks, taskCount, schedulerTimeout);
-	//shortest_process_next(tasks, taskCount, schedulerTimeout);
+	// shortest_process_next(tasks, taskCount, schedulerTimeout);
 	//highest_RR_next(tasks, taskCount,schedulerTimeout);
 	
 	//TASK C:
-	// shortest_remaining_time(tasks, taskCount,schedulerTimeout);
-	feedback(tasks, taskCount,schedulerTimeout);
+	shortest_remaining_time(tasks, taskCount,schedulerTimeout);
+	//feedback(tasks, taskCount,schedulerTimeout);
 
 
 	
