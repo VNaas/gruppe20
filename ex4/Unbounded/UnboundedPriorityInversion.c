@@ -18,6 +18,8 @@ pthread_mutex_t mutex;
 pthread_barrier_t barrier;
 pthread_t threadL, threadM, threadH;
 
+int taskE = 1;
+int taskD = 0;
 
 void* low_f(void *arg);
 void* med_f(void*arg);
@@ -71,10 +73,10 @@ int main(){
 	pthread_mutexattr_t mutexattr;
 	pthread_mutexattr_setpshared(&mutexattr,PTHREAD_PROCESS_SHARED);
 	pthread_mutexattr_setprotocol(&mutexattr,PTHREAD_PRIO_INHERIT);
-	// pthread_mutex_init(&mutex,)
+	pthread_mutex_init(&mutex,&mutexattr);
 	sem_init(&sem, 0, 1);
 
-	// Create tasks	
+	// Create tasks
 	int policy = SCHED_RR;
 	create_and_start_task(&threadL, low_f, policy, 1);
 	create_and_start_task(&threadM, med_f, policy, 2);
@@ -86,45 +88,60 @@ int main(){
 	printf("-------------------Start test-------------------\n");
 	pthread_barrier_wait(&barrier);
 	pthread_barrier_destroy(&barrier);
-	
+
 	pthread_join(threadL, NULL);
 	pthread_join(threadM, NULL);
 	pthread_join(threadH, NULL);
 
 	printf("-------------------End test-------------------\n");
-	
+
 	// Delete semaphore
 	sem_destroy(&sem);
-	
+
 	printf("Finished\n");
-	
+
 	exit(EXIT_SUCCESS);
 }
 
 void* high_f(void *arg){
 	set_cpu(CPU_ID);
-	
-	print_pri(&threadH, "H0: high priority waiting for sync\n");
-	pthread_barrier_wait(&barrier);
-	
-	print_pri(&threadH, "H1: high usleep\n");
-	usleep(200 * 1000);
-	print_pri(&threadH, "H3: high priority thread waits lock\n");
-	sem_wait(&sem);
-	print_pri(&threadH, "H4: high priority thread has lock\n");
-	print_pri(&threadH, "H5: high priority thread runs with lock\n");
-	busy_wait_ms(100);
-	print_pri(&threadH, "H6: high priority thread runs with lock\n");
-	busy_wait_ms(100);
-	print_pri(&threadH, "H7: high priority thread return lock\n");
-	sem_post(&sem);
+	if(taskD){
+		print_pri(&threadH, "H0: high priority waiting for sync\n");
+		pthread_barrier_wait(&barrier);
 
+		print_pri(&threadH, "H1: high usleep\n");
+		usleep(200 * 1000);
+		print_pri(&threadH, "H3: high priority thread waits lock\n");
+		sem_wait(&sem);						// Lock resource
+		print_pri(&threadH, "H4: high priority thread has lock\n");
+		print_pri(&threadH, "H5: high priority thread runs with lock\n");
+		busy_wait_ms(100);
+		print_pri(&threadH, "H6: high priority thread runs with lock\n");
+		busy_wait_ms(100);
+		print_pri(&threadH, "H7: high priority thread return lock\n");
+		sem_post(&sem);						// Unlock resource
+	}
+	else if(taskE){
+		print_pri(&threadH, "H0: high priority waiting for sync\n");
+		pthread_barrier_wait(&barrier);
+
+		print_pri(&threadH, "H1: high usleep\n");
+		usleep(200 * 1000);
+		print_pri(&threadH, "H3: high priority thread waits lock\n");
+		pthread_mutex_lock(&mutex);			// Lock resource
+		print_pri(&threadH, "H4: high priority thread has lock\n");
+		print_pri(&threadH, "H5: high priority thread runs with lock\n");
+		busy_wait_ms(100);
+		print_pri(&threadH, "H6: high priority thread runs with lock\n");
+		busy_wait_ms(100);
+		print_pri(&threadH, "H7: high priority thread return lock\n");
+		pthread_mutex_unlock(&mutex);		// Unlock resource
+	}
 	return NULL;
 }
 
 void* med_f(void *arg){
 	set_cpu(CPU_ID);
-	
 	print_pri(&threadM, "M0: med priority waiting for sync\n");
 	pthread_barrier_wait(&barrier);
 
@@ -139,28 +156,47 @@ void* med_f(void *arg){
 	print_pri(&threadM, "M5: med priority thread runs\n");
 	busy_wait_ms(100);
 	print_pri(&threadM, "M6: med priority thread runs\n");
-	busy_wait_ms(100);
-	
+		busy_wait_ms(100);
 	return NULL;
 }
 
 void* low_f(void *arg){
 	set_cpu(CPU_ID);
-	
-	print_pri(&threadL, "L0: low priority waiting for sync\n");
-	pthread_barrier_wait(&barrier);
 
-	print_pri(&threadL, "L1: low priority thread waits lock\n");	
-	sem_wait(&sem);
-	print_pri(&threadL, "L2: low priority thread has lock\n");
-	print_pri(&threadL, "L3: low priority thread runs with lock\n");
-	busy_wait_ms(100);
-	print_pri(&threadL, "L4: low priority thread runs with lock\n");
-	busy_wait_ms(100);
-	print_pri(&threadL, "L5: low priority thread runs with lock\n");
-	busy_wait_ms(100);
-	print_pri(&threadL, "L6: low priority thread return lock\n");
-	sem_post(&sem);
-	
+	if(taskD){
+		print_pri(&threadL, "L0: low priority waiting for sync\n");
+		pthread_barrier_wait(&barrier);
+
+		print_pri(&threadL, "L1: low priority thread waits lock\n");
+		sem_wait(&sem);					// Lock resource
+		print_pri(&threadL, "L2: low priority thread has lock\n");
+		print_pri(&threadL, "L3: low priority thread runs with lock\n");
+		busy_wait_ms(100);
+		print_pri(&threadL, "L4: low priority thread runs with lock\n");
+		busy_wait_ms(100);
+		print_pri(&threadL, "L5: low priority thread runs with lock\n");
+		busy_wait_ms(100);
+		print_pri(&threadL, "L6: low priority thread return lock\n");
+		sem_post(&sem);					// Unlock resource
+	}
+	else if (taskE)
+	{
+		print_pri(&threadL, "L0: low priority waiting for sync\n");
+		pthread_barrier_wait(&barrier);
+
+		print_pri(&threadL, "L1: low priority thread waits lock\n");
+		pthread_mutex_lock(&mutex);		// Lock resource
+		print_pri(&threadL, "L2: low priority thread has lock\n");
+		print_pri(&threadL, "L3: low priority thread runs with lock\n");
+		busy_wait_ms(100);
+		print_pri(&threadL, "L4: low priority thread runs with lock\n");
+		busy_wait_ms(100);
+		print_pri(&threadL, "L5: low priority thread runs with lock\n");
+		busy_wait_ms(100);
+		print_pri(&threadL, "L6: low priority thread return lock\n");
+		pthread_mutex_unlock(&mutex);	// Unlock resource
+	}
+	else printf("Which task are you running??\n");
+
 	return NULL;
 }
