@@ -7,7 +7,7 @@
 
 static inline void nonOptimizedBusyWait(void){
     for(long i = 0; i < 10000000; i++){
-        // "Memory clobber" - tells the compiler optimizer that all the memory 
+        // "Memory clobber" - tells the compiler optimizer that all the memory
         // is being touched, and that therefore the loop cannot be optimized out
         asm volatile("" ::: "memory");
     }
@@ -50,17 +50,27 @@ struct Singleton* getSingleton(){
     }
     return g_singleton;
 }
+/* The initialization of the Singelton g_singelton object in line 38 is done in three steps:
+1: allocate memory
+2: construct Singelton object in allocated memory
+3: make g_simpelton point to the object.
+C/C++ DOES NOT GUARANTEE that step 2 and three happen in that order.
+This makes the action not reliable:
+    Thread A -> step 1, step 3;
+    Thread B -> check g_singleton - not NULL; return g_singleton
+Here Thread B returns the pointer before the object is created.
+*/
 
 
 void* singletonUser(void* args){
-    
+
     nonOptimizedBusyWait();
 
     struct Singleton* s = getSingleton();
-    
-    printf("Got singleton %p:{%lu %lu %lu %lu}\n", 
+
+    printf("Got singleton %p:{%lu %lu %lu %lu}\n",
         (void*)s, s->a, s->b, s->c, s->d);
-    
+
     return NULL;
 }
 
@@ -70,12 +80,12 @@ int main(){
 
     pthread_t threadHandles[50];
     long numThreads = sizeof(threadHandles)/sizeof(*threadHandles);
-    
+
     for(long i = 0; i < numThreads; i++){
         pthread_create(&threadHandles[i], NULL, singletonUser, NULL);
     }
 
     for(long i = 0; i < numThreads; i++){
         pthread_join(threadHandles[i], NULL);
-    }    
+    }
 }
