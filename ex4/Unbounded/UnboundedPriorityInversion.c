@@ -71,7 +71,6 @@ int main(){
 	int threadNum = 4;
 	pthread_barrier_init(&barrier, NULL, threadNum);
 	pthread_mutexattr_t mutexattr;
-	pthread_mutexattr_setpshared(&mutexattr,PTHREAD_PROCESS_SHARED);
 	pthread_mutexattr_setprotocol(&mutexattr,PTHREAD_PRIO_INHERIT);
 	pthread_mutex_init(&mutex,&mutexattr);
 	sem_init(&sem, 0, 1);
@@ -105,24 +104,25 @@ int main(){
 
 void* high_f(void *arg){
 	set_cpu(CPU_ID);
-	if(taskD){
-		print_pri(&threadH, "H0: high priority waiting for sync\n");
-		pthread_barrier_wait(&barrier);
+	// if(taskD){
+	// 	print_pri(&threadH, "H0: high priority waiting for sync\n");
+	// 	pthread_barrier_wait(&barrier);
 
-		print_pri(&threadH, "H1: high usleep\n");
-		usleep(200 * 1000);
-		print_pri(&threadH, "H3: high priority thread waits lock\n");
-		sem_wait(&sem);						// Lock resource
-		print_pri(&threadH, "H4: high priority thread has lock\n");
-		print_pri(&threadH, "H5: high priority thread runs with lock\n");
-		busy_wait_ms(100);
-		print_pri(&threadH, "H6: high priority thread runs with lock\n");
-		busy_wait_ms(100);
-		print_pri(&threadH, "H7: high priority thread return lock\n");
-		sem_post(&sem);						// Unlock resource
-	}
-	else if(taskE){
+	// 	print_pri(&threadH, "H1: high usleep\n");
+	// 	usleep(200 * 1000);
+	// 	print_pri(&threadH, "H3: high priority thread waits lock\n");
+	// 	sem_wait(&sem);						// Lock resource
+	// 	print_pri(&threadH, "H4: high priority thread has lock\n");
+	// 	print_pri(&threadH, "H5: high priority thread runs with lock\n");
+	// 	busy_wait_ms(100);
+	// 	print_pri(&threadH, "H6: high priority thread runs with lock\n");
+	// 	busy_wait_ms(100);
+	// 	print_pri(&threadH, "H7: high priority thread return lock\n");
+	// 	sem_post(&sem);						// Unlock resource
+	// }
+	// else if(taskE){
 		print_pri(&threadH, "H0: high priority waiting for sync\n");
+		printf("Using mutexes \n");
 		pthread_barrier_wait(&barrier);
 
 		print_pri(&threadH, "H1: high usleep\n");
@@ -136,7 +136,7 @@ void* high_f(void *arg){
 		busy_wait_ms(100);
 		print_pri(&threadH, "H7: high priority thread return lock\n");
 		pthread_mutex_unlock(&mutex);		// Unlock resource
-	}
+	// }
 	return NULL;
 }
 
@@ -163,26 +163,27 @@ void* med_f(void *arg){
 void* low_f(void *arg){
 	set_cpu(CPU_ID);
 
-	if(taskD){
-		print_pri(&threadL, "L0: low priority waiting for sync\n");
-		pthread_barrier_wait(&barrier);
+	// if(taskD){
+	// 	print_pri(&threadL, "L0: low priority waiting for sync\n");
+	// 	pthread_barrier_wait(&barrier);
 
-		print_pri(&threadL, "L1: low priority thread waits lock\n");
-		sem_wait(&sem);					// Lock resource
-		print_pri(&threadL, "L2: low priority thread has lock\n");
-		print_pri(&threadL, "L3: low priority thread runs with lock\n");
-		busy_wait_ms(100);
-		print_pri(&threadL, "L4: low priority thread runs with lock\n");
-		busy_wait_ms(100);
-		print_pri(&threadL, "L5: low priority thread runs with lock\n");
-		busy_wait_ms(100);
-		print_pri(&threadL, "L6: low priority thread return lock\n");
-		sem_post(&sem);					// Unlock resource
-	}
-	else if (taskE)
-	{
+	// 	print_pri(&threadL, "L1: low priority thread waits lock\n");
+	// 	sem_wait(&sem);					// Lock resource
+	// 	print_pri(&threadL, "L2: low priority thread has lock\n");
+	// 	print_pri(&threadL, "L3: low priority thread runs with lock\n");
+	// 	busy_wait_ms(100);
+	// 	print_pri(&threadL, "L4: low priority thread runs with lock\n");
+	// 	busy_wait_ms(100);
+	// 	print_pri(&threadL, "L5: low priority thread runs with lock\n");
+	// 	busy_wait_ms(100);
+	// 	print_pri(&threadL, "L6: low priority thread return lock\n");
+	// 	sem_post(&sem);					// Unlock resource
+	// }
+	// else if (taskE)
+	// {
 		print_pri(&threadL, "L0: low priority waiting for sync\n");
 		pthread_barrier_wait(&barrier);
+		printf("Using mutexes \n");
 
 		print_pri(&threadL, "L1: low priority thread waits lock\n");
 		pthread_mutex_lock(&mutex);		// Lock resource
@@ -195,8 +196,8 @@ void* low_f(void *arg){
 		busy_wait_ms(100);
 		print_pri(&threadL, "L6: low priority thread return lock\n");
 		pthread_mutex_unlock(&mutex);	// Unlock resource
-	}
-	else printf("Which task are you running??\n");
+	// // }
+	// else printf("Which task are you running??\n");
 
 	return NULL;
 }

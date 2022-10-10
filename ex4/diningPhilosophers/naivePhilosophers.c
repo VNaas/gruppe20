@@ -10,9 +10,9 @@
 #include <unistd.h>
 #include <pthread.h>
 
-#define num_philosophers 5
+#define NUM_THREADS 5
 
-static pthread_mutex_t* forks[num_philosophers];
+pthread_mutex_t forks[NUM_THREADS];
 pthread_barrier_t barr;
 
 
@@ -27,29 +27,36 @@ void busy_wait_ms(int ms){
 
 void* pickUpFork(void* philosopher){
     pthread_barrier_wait(&barr);
-    pthread_mutex_lock(forks[ (int)philosopher ]);
+    printf("Philosopher %d Waiting for fork %d\n", (int)philosopher, (int)philosopher);
+
+    pthread_mutex_lock(&forks[ (int)philosopher ]);
     busy_wait_ms(1000);
-    pthread_mutex_lock(forks[( (int)philosopher + 1 ) % num_philosophers]);
+    printf("Philosopher %d Waiting for fork %d\n", (int)philosopher, ((int)philosopher+1 )%NUM_THREADS);
+
+    pthread_mutex_lock(&forks[( (int)philosopher + 1 ) % NUM_THREADS]);
+    return NULL;
 }
 
 int main(){
-    pthread_t* philosophers[num_philosophers];
+    pthread_t philosophers[NUM_THREADS];
 
-    pthread_barrier_init(&barr,NULL, num_philosophers);
+    pthread_barrier_init(&barr,NULL, NUM_THREADS);
 
-    for(int i = 0; i < num_philosophers; i++){
-        pthread_mutex_init(forks[i], NULL);
+    for(int i = 0; i < NUM_THREADS; i++){
+        pthread_mutex_init(&forks[i], NULL);
+
     } // init fork mutexes
 
-    for(int i = 0; i < num_philosophers; i++){
-        pthread_create(philosophers[i],NULL,pickUpFork,i);
+    for(int i = 0; i < NUM_THREADS; i++){
+        pthread_create(&philosophers[i],NULL,pickUpFork,i);
     }   // Create philosopher threads
 
-    for(int i = 0; i < num_philosophers; i++){
+    for(int i = 0; i < NUM_THREADS; i++){
+        printf("%d\n",i);
         pthread_join(philosophers[i],NULL);
     }   // Join threads
-    for(int i = 0; i < num_philosophers; i++){
-        pthread_mutex_destroy(forks[i]);
+    for(int i = 0; i < NUM_THREADS; i++){
+        pthread_mutex_destroy(&forks[i]);
     } // destroy fork mutexes
     return 0;
 }
