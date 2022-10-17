@@ -49,12 +49,12 @@ void init(){
 
 	pcl_switch_to_osc(PCL_OSC0, FOSC0, OSC0_STARTUP);
 	
-	stdio_usb_init(&CONFIG_USART_IF);
-
-    #if defined(__GNUC__) && defined(__AVR32__)
-	    setbuf(stdout, NULL);
-	    setbuf(stdin,  NULL);
-    #endif
+	//stdio_usb_init(&CONFIG_USART_IF);
+//
+    //#if defined(__GNUC__) && defined(__AVR32__)
+	    //setbuf(stdout, NULL);
+	    //setbuf(stdin,  NULL);
+    //#endif
 }
 
 static void taskFn(void* args){
@@ -64,20 +64,20 @@ static void taskFn(void* args){
 
 	while(1){
 		gpio_toggle_pin(LED0_GPIO);
-		printf("tick %d\n", iter++);
+		//printf("tick %d\n", iter++);
 		
 		vTaskDelay(delay);
 	}
 }
 
-static void taskA_1(void* args{
+static void taskA_1(void* args){
 	const portTickType delay = 200 / portTICK_RATE_MS;
     int iter = 0;
 
     while (1)
     {
-        gpio_toggle_pin(LED0_GPIO)
-        printf("tick LED0 %d\n", iter++);
+        gpio_toggle_pin(LED0_GPIO);
+        //printf("tick LED0 %d\n", iter++);
         vTaskDelay(delay);
     }
 }
@@ -86,11 +86,12 @@ static void taskA_2(void* args){
     int iter = 0;
     while (1)
     {
-        gpio_toggle_pin(LED0_GPI1)
-        printf("tick LED1 %d\n", iter++);    
+        gpio_toggle_pin(LED1_GPIO);
+        //printf("tick LED1 %d\n", iter++);    
         vTaskDelay(delay);
     }
 }
+
 //TASK B
 struct responseTaskArgs {
     struct { 
@@ -98,24 +99,24 @@ struct responseTaskArgs {
         uint32_t response;
     } pin;
 // other args ...
+	uint32_t delayDuration;
 };
 
-static void responseTask(void* args){
-    struct responseTaskArgs a = *(struct responseTaskArgs*)args;
-    while(1){
-        if(gpio_pin_is_low(a.pin.test)){
-
-        }
-    }
-}
 
 static void responseTaskB(void* args){
     //The tasks should detect a test signal from the BRTT by continuously reading the value (busy-wait). 
     //When the signal is detected, the task should send the response signal by setting the response pin low.
+	struct responseTaskArgs a = *(struct responseTaskArgs*)args;
     while(1){
+		busy_delay_short();
 		if(gpio_pin_is_low(a.pin.test)){
 			gpio_set_pin_low(a.pin.response);
-            vTaskDelay(0) //Skal den her eller etter begge pin interaction?
+            //Skal den her eller etter begge pin interaction?
+			int pin_value = 0;
+			while(!pin_value){
+				pin_value = gpio_get_pin_value(a.pin.test);
+			}
+			vTaskDelay(a.delayDuration);
 			gpio_set_pin_high(a.pin.response);
 		}
 	}
@@ -125,31 +126,36 @@ static void responseTaskC(void* args){
     // Again, the ”work” is just a call to busy wait ms().  
     //When the signal is detected, the task should send the response signal by setting the response pin low.
     //Make task C wait 3ms before responding, while tasks A and B respond immediately.
+	struct responseTaskArgs a = *(struct responseTaskArgs*)args;
     while(1){
 		if(gpio_pin_is_low(a.pin.test)){
-            if (a.pin.test == TEST_C){
-				busy_delay_ms(3);
-			}
+            busy_delay_ms(a.delayDuration);
 			gpio_set_pin_low(a.pin.response);
-            vTaskDelay(0) //Skal den her eller etter begge pin interaction?
+			
+			int pin_value = 0;
+			while(!pin_value){
+				pin_value = gpio_get_pin_value(a.pin.test);
+			}
+            vTaskDelay(0);
 			gpio_set_pin_high(a.pin.response);
+		}
 	}
 }
 
-static void responseTaskC(void* args){
+static void responseTaskD(void* args){
     // Instead of busy-waiting for the test pin to go low, we want to check it intermittently. 
     //If the pin is not low, we can wait for the next scheduler tick by calling vTaskDelay(1), 
     //then loop around and test the pin again once the scheduler wakes us. 
-
-    //DEnne er jeg usikker på. 
+	struct responseTaskArgs a = *(struct responseTaskArgs*)args;
     while(1){
 		if(gpio_pin_is_low(a.pin.test)){
-			if (a.pin.test == TEST_C){
-				busy_delay_ms(3);
-			}
-			
+			busy_delay_ms(a.delayDuration);
 			gpio_set_pin_low(a.pin.response);
-			vTaskDelay(1);
+			int pin_value = 0;
+			while(!pin_value){
+				pin_value = gpio_get_pin_value(a.pin.test);
+			}
+			vTaskDelay(0);
 			gpio_set_pin_high(a.pin.response);
 		} else {
 			vTaskDelay(1);
@@ -164,27 +170,30 @@ int main(){
     
   
     //TASK A:
-	xTaskCreate(taskA_1, "", 1024, NULL, tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(taskA_2, "", 1024, NULL, tskIDLE_PRIORITY + 1, NULL);
+	//xTaskCreate(taskA_1, "", 256, NULL, tskIDLE_PRIORITY + 1, NULL);
+    //xTaskCreate(taskA_2, "", 256, NULL, tskIDLE_PRIORITY + 2, NULL);
     
     //TASK B:
-	xTaskCreate(responseTaskB, "", 1024,(&(struct responseTaskArgs){{TEST_A, RESPONSE_A}}),tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(responseTaskB, "", 1024,(&(struct responseTaskArgs){{TEST_B, RESPONSE_B}}),tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(responseTaskB, "", 1024,(&(struct responseTaskArgs){{TEST_C, RESPONSE_C}}),tskIDLE_PRIORITY + 1, NULL);
+	//xTaskCreate(responseTaskB, "", 1024,(&(struct responseTaskArgs){{TEST_A, RESPONSE_A},0}),tskIDLE_PRIORITY + 1, NULL);
+    //xTaskCreate(responseTaskB, "", 1024,(&(struct responseTaskArgs){{TEST_B, RESPONSE_B},0}),tskIDLE_PRIORITY + 1, NULL);
+    //xTaskCreate(responseTaskB, "", 1024,(&(struct responseTaskArgs){{TEST_C, RESPONSE_C},0}),tskIDLE_PRIORITY + 1, NULL);
 
-    //TASK C:
-    xTaskCreate(responseTaskC, "", 1024,(&(struct responseTaskArgs){{TEST_A, RESPONSE_A}}),tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(responseTaskC, "", 1024,(&(struct responseTaskArgs){{TEST_B, RESPONSE_B}}),tskIDLE_PRIORITY + 1, NULL);
-    xTaskCreate(responseTaskC, "", 1024,(&(struct responseTaskArgs){{TEST_C, RESPONSE_C}}),tskIDLE_PRIORITY + 1, NULL);
-
+    ////TASK C:
+    //xTaskCreate(responseTaskC, "", 1024,(&(struct responseTaskArgs){{TEST_A, RESPONSE_A},0}),tskIDLE_PRIORITY + 1, NULL);
+    //xTaskCreate(responseTaskC, "", 1024,(&(struct responseTaskArgs){{TEST_B, RESPONSE_B},0}),tskIDLE_PRIORITY + 1, NULL);
+    //xTaskCreate(responseTaskC, "", 1024,(&(struct responseTaskArgs){{TEST_C, RESPONSE_C},3}),tskIDLE_PRIORITY + 1, NULL);
+//
     //TASK D:
-    xTaskCreate(responseTaskD, "", 1024, (&(struct responseTaskArgs){{TEST_A, RESPONSE_A}}), tskIDLE_PRIORITY + 1, NULL);
-	xTaskCreate(responseTaskD, "", 1024, (&(struct responseTaskArgs){{TEST_B, RESPONSE_B}}), tskIDLE_PRIORITY + 1, NULL);
-	xTaskCreate(responseTaskD, "", 1024, (&(struct responseTaskArgs){{TEST_C, RESPONSE_C}}), tskIDLE_PRIORITY + 1, NULL);
+    //xTaskCreate(responseTaskD, "", 1024, (&(struct responseTaskArgs){{TEST_A, RESPONSE_A},0}), tskIDLE_PRIORITY + 1, NULL);
+	//xTaskCreate(responseTaskD, "", 1024, (&(struct responseTaskArgs){{TEST_B, RESPONSE_B},0}), tskIDLE_PRIORITY + 1, NULL);
+	//xTaskCreate(responseTaskD, "", 1024, (&(struct responseTaskArgs){{TEST_C, RESPONSE_C},3}), tskIDLE_PRIORITY + 1, NULL);
     
-    
-    // Start the scheduler, anything after this will not run.
+    //TASK E:
+    xTaskCreate(responseTaskD, "", 1024, (&(struct responseTaskArgs){{TEST_A, RESPONSE_A},0}), tskIDLE_PRIORITY + 1, NULL);
+    xTaskCreate(responseTaskD, "", 1024, (&(struct responseTaskArgs){{TEST_B, RESPONSE_B},0}), tskIDLE_PRIORITY + 2, NULL);
+    xTaskCreate(responseTaskD, "", 1024, (&(struct responseTaskArgs){{TEST_C, RESPONSE_C},3}), tskIDLE_PRIORITY + 3, NULL);
+// Start the scheduler, anything after this will not run.
 	vTaskStartScheduler();
-    
+	
 }
 
