@@ -19,96 +19,107 @@ __attribute__((__interrupt__)) static void interrupt_J3(void);
 
 void init()
 {
-    sysclk_init();
-    board_init();
-    busy_delay_init(BOARD_OSC0_HZ);
+	sysclk_init();
+	board_init();
+	busy_delay_init(BOARD_OSC0_HZ);
+    gpio_configure_pin(TEST_A, GPIO_DIR_INPUT);
+    gpio_configure_pin(RESPONSE_A, GPIO_DIR_OUTPUT | GPIO_INIT_HIGH);
+    gpio_configure_pin(TEST_B, GPIO_DIR_INPUT);
+    gpio_configure_pin(RESPONSE_B, GPIO_DIR_OUTPUT | GPIO_INIT_HIGH);
+    gpio_configure_pin(TEST_C, GPIO_DIR_INPUT);
+    gpio_configure_pin(RESPONSE_C, GPIO_DIR_OUTPUT | GPIO_INIT_HIGH);
+	cpu_irq_disable();
+	gpio_enable_pin_interrupt(TEST_A, GPIO_FALLING_EDGE); // GPIO_PIN_CHANGE?
+	gpio_enable_pin_interrupt(TEST_B, GPIO_FALLING_EDGE);
+	gpio_enable_pin_interrupt(TEST_C, GPIO_FALLING_EDGE);
+	INTC_init_interrupts();
+	INTC_register_interrupt(&interrupt_J3, AVR32_GPIO_IRQ_3, AVR32_INTC_INT1);
+	cpu_irq_enable();
 
-    cpu_irq_disable();
-    INTC_init_interrupts();
-    INTC_register_interrupt(&interrupt_J3, AVR32_GPIO_IRQ_3, AVR32_INTC_INT1);
-    cpu_irq_enable();
+	stdio_usb_init(&CONFIG_USART_IF);
 
-    stdio_usb_init(&CONFIG_USART_IF);
-
-#if defined(__GNUC__) && defined(__AVR32__)
-    setbuf(stdout, NULL);
-    setbuf(stdin, NULL);
-#endif
+	#if defined(__GNUC__) && defined(__AVR32__)
+	setbuf(stdout, NULL);
+	setbuf(stdin, NULL);
+	#endif
 }
+
+volatile int testAFlag = 0;
+volatile int testBFlag = 0;
+volatile int testCFlag = 0;
 
 __attribute__((__interrupt__)) static void interrupt_J3(void)
 {
-    int pinA = gpio_get_pin_interrupt_flag(TEST_A);
-    int pinB = gpio_get_pin_interrupt_flag(TEST_B);
-    int pinC = gpio_get_pin_interrupt_flag(TEST_C);
-    if (pinA)
-    {
-        gpio_set_pin_low(RESPONSE_A);
-        int test_A = 0;
-        while (!test_A)
-        {
-            test_A = gpio_get_pin_value(TEST_A);
-        }
-        gpio_set_pin_high(RESPONSE_A);
-        gpio_clear_pin_interrupt_flag(TEST_A)
-    }
-    if (pinB)
-    {
-        gpio_set_pin_low(RESPONSE_B);
-        int test_B = 0;
-        while (!test_B)
-        {
-            test_B = gpio_get_pin_value(TEST_B);
-        }
-        gpio_set_pin_high(RESPONSE_B);
-        gpio_clear_pin_interrupt_flag(TEST_B)
-    }
-    if (pinC)
-    {
-        gpio_set_pin_low(RESPONSE_C);
-        int test_C = 0;
-        while (!test_C)
-        {
-            test_C = gpio_get_pin_value(TEST_C);
-        }
-        gpio_set_pin_high(RESPONSE_C);
-        gpio_clear_pin_interrupt_flag(TEST_C)
-    }
+    // gpio_set_pin_high(LED0_GPIO);
+    
+	int pinA = gpio_get_pin_interrupt_flag(TEST_A);
+	if (pinA)
+	{
+		// Probably more efficient to respond here
+		testAFlag = 1;
+		gpio_clear_pin_interrupt_flag(TEST_A);
+	}
+	int pinB = gpio_get_pin_interrupt_flag(TEST_B);
+	if (pinB)
+	{
+		busy_delay_us(100);
+		testBFlag = 1;
+		gpio_clear_pin_interrupt_flag(TEST_B);
+	}
+	int pinC = gpio_get_pin_interrupt_flag(TEST_C);
+	if (pinC)
+	{
+		testCFlag = 1;
+		gpio_clear_pin_interrupt_flag(TEST_C);
+	}
 }
+
 
 int main(void)
 {
-    init();
+	init();
+	printf("Hei\n");
 
-    int interrupts = 0;
-    int polling = 0;
-    int all = 0;
-    if (polling)
-    {
-        if (all)
-        {
-            testAll();
-        }
-        else
-        {
-            testA();
-        }
-    }
-    else if (interrupts)
-    {
-        gpio_enable_pin_interrupt(TEST_A, GPIO_FALLING_EDGE);
-        gpio_enable_pin_interrupt(TEST_B, GPIO_FALLING_EDGE);
-        gpio_enable_pin_interrupt(TEST_C, GPIO_FALLING_EDGE);
-    }
+	while (1)
+	{
+        //gpio_toggle_pin(LED0_GPIO);
 
-    while (1)
-    {
-        gpio_toggle_pin(LED0_GPIO);
+        //printf("tick\n");
 
-        printf("tick\n");
-
-        busy_delay_ms(500);
-        // testA();
-        // testAll();
-    }
+        //busy_delay_ms(500);
+		if (testAFlag)
+		{
+			gpio_set_pin_low(RESPONSE_A);
+			int test_A = 0;
+			while (!test_A)
+			{
+				test_A = gpio_get_pin_value(TEST_A);
+			}
+			gpio_set_pin_high(RESPONSE_A);
+			testAFlag = 0;
+		}
+		if (testBFlag)
+		{
+			gpio_set_pin_low(RESPONSE_B);
+			int test_B = 0;
+			while (!test_B)
+			{
+				test_B = gpio_get_pin_value(TEST_B);
+			}
+			gpio_set_pin_high(RESPONSE_B);
+			testBFlag = 0;
+		}
+		if (testCFlag)
+		{
+			gpio_set_pin_low(RESPONSE_C);
+			int test_C = 0;
+			while (!test_C)
+			{
+				test_C = gpio_get_pin_value(TEST_C);
+			}
+			gpio_set_pin_high(RESPONSE_C);
+			testCFlag = 0;
+		}
+		
+	}
 }
